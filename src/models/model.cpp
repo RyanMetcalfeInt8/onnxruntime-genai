@@ -548,7 +548,86 @@ DeviceInterface* SetProviderSessionOptions(OrtSessionOptions& session_options,
 #else
       throw std::runtime_error("DML provider requested, but the installed GenAI has not been built with DML support");
 #endif
-    } else {
+    } else if (provider_options.name == "OpenVINO") {
+      std::cout << "OpenVINO session option creation..." << std::endl;
+      p_device = GetDeviceInterface(DeviceType::OpenVINO);
+
+#if 0
+      std::vector<const char*> keys, values;
+      for (auto& option : provider_options.options) {
+        keys.emplace_back(option.first.c_str());
+        values.emplace_back(option.second.c_str());
+      }
+      std::cout << "calling (older) session_options.AppendExecutionProvider " << std::endl;
+      session_options.AppendExecutionProvider(provider_options.name.c_str(), keys.data(), values.data(), keys.size());
+#else
+      // Register openvino EP (TODO: this should get moved into Openvino::InterfaceImpl)
+      static const std::filesystem::path library_path = "onnxruntime_providers_openvino_plugin.dll";
+      static const std::string registration_name = "openvino_ep";
+      std::cout << "RegisterExecutionProviderLibrary..." << std::endl;
+      Generators::GetOrtEnv().RegisterExecutionProviderLibrary(registration_name.c_str(), library_path.c_str());
+
+      // First, find what the device_type was specified as in openvino_genai.json
+      std::string ov_device_type;
+      for (auto& option : provider_options.options) {
+        if (option.first == "device_type") {
+          ov_device_type = option.second;
+        }
+      }
+
+      // if not set, initialize it to CPU
+      if (ov_device_type.empty()) {
+        ov_device_type = "CPU";
+      }
+
+      // Next, get the EP Devices, and find the openvino_ep device that matches ov_device_type
+      size_t num_devices = 0;
+      const OrtEpDevice* const* device_ptrs = nullptr;
+      Generators::GetOrtEnv().GetEpDevices(&device_ptrs, &num_devices);
+      const OrtEpDevice* const* ov_device = nullptr;
+      for (int i = 0; i < num_devices; i++) {
+        std::string ep_name = Ort::api->EpDevice_EpName(device_ptrs[i]);
+        if (ep_name == "openvino_ep") {
+          const OrtKeyValuePairs* keyvals = Ort::api->EpDevice_EpMetadata(device_ptrs[i]);
+          size_t num_entries;
+          const char* const* keys = nullptr;
+          const char* const* values = nullptr;
+          Ort::api->GetKeyValuePairs(keyvals, &keys, &values, &num_entries);
+          for (int kvi = 0; kvi < num_entries; kvi++) {
+            std::string key = keys[kvi];
+            std::string val = values[kvi];
+            if (key == "ov_device" && val == ov_device_type) {
+              ov_device = &device_ptrs[i];
+              break;
+            }
+          }
+
+          if (ov_device)
+            break;
+        }
+      }
+
+      std::vector<const char*> keys, values;
+      for (auto& option : provider_options.options) {
+        //this is no longer a valid options for new EP
+        if (option.first == "device_type")
+          continue;
+
+        keys.emplace_back(option.first.c_str());
+        values.emplace_back(option.second.c_str());
+      }
+
+      if (!ov_device) {
+        throw std::runtime_error("openvino_ep device not found..");
+      }
+
+      OrtEnv& env = Generators::GetOrtEnv();
+      std::cout << "calling (newer) session_options.AppendExecutionProvider_V2" << std::endl;
+      session_options.AppendExecutionProvider_V2(&env, ov_device, 1, keys.data(), values.data(), keys.size());
+#endif
+
+    }
+    else {
       // For providers that go through the extensible AppendExecutionProvider API:
       if (provider_options.name == "QNN") {
         session_options.AddConfigEntry("ep.share_ep_contexts", "1");
@@ -562,8 +641,6 @@ DeviceInterface* SetProviderSessionOptions(OrtSessionOptions& session_options,
         }
       } else if (provider_options.name == "WebGPU")
         p_device = GetDeviceInterface(DeviceType::WEBGPU);
-      else if (provider_options.name == "OpenVINO")
-        p_device = GetDeviceInterface(DeviceType::OpenVINO);
       else if (provider_options.name == "VitisAI") {
         session_options.AddConfigEntry("session.inter_op.allow_spinning", "0");
         session_options.AddConfigEntry("session.intra_op.allow_spinning", "0");

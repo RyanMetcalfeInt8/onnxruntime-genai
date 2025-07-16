@@ -368,6 +368,18 @@ inline OrtEnv& OrtEnv::CreateAndRegisterAllocator(const OrtMemoryInfo& mem_info,
   return *this;
 }
 
+inline void OrtEnv::RegisterExecutionProviderLibrary(const char* registration_name, const ORTCHAR_T* path) {
+  Ort::ThrowOnError(Ort::api->RegisterExecutionProviderLibrary(this, registration_name, path));
+}
+
+inline void OrtEnv::UnregisterExecutionProviderLibrary(const char* registration_name) {
+  Ort::ThrowOnError(Ort::api->UnregisterExecutionProviderLibrary(this, registration_name));
+}
+
+inline void OrtEnv::GetEpDevices(const OrtEpDevice* const** ep_devices, size_t* num_ep_devices) {
+  Ort::api->GetEpDevices(this, ep_devices, num_ep_devices);
+}
+
 inline std::unique_ptr<OrtThreadingOptions> OrtThreadingOptions::Create() {
   OrtThreadingOptions* p;
   Ort::ThrowOnError(Ort::api->CreateThreadingOptions(&p));
@@ -678,6 +690,12 @@ inline OrtSessionOptions& OrtSessionOptions::AppendExecutionProvider_CANN(const 
 
 inline OrtSessionOptions& OrtSessionOptions::AppendExecutionProvider(const std::string& provider_name, const char* const* keys, const char* const* values, size_t num_keys) {
   Ort::ThrowOnError(Ort::api->SessionOptionsAppendExecutionProvider(this, provider_name.c_str(), keys, values, num_keys));
+  return *this;
+}
+
+inline OrtSessionOptions& OrtSessionOptions::AppendExecutionProvider_V2(OrtEnv* env, const OrtEpDevice* const* ep_devices, size_t num_ep_devices, 
+    const char* const* ep_option_keys, const char* const* ep_option_vals, size_t num_ep_options) {
+  Ort::ThrowOnError(Ort::api->SessionOptionsAppendExecutionProvider_V2(this, env, ep_devices, num_ep_devices, ep_option_keys, ep_option_vals, num_ep_options));
   return *this;
 }
 

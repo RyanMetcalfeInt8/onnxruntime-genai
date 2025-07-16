@@ -451,6 +451,11 @@ struct OrtEnv {
 
   OrtEnv& CreateAndRegisterAllocator(const OrtMemoryInfo& mem_info, const OrtArenaCfg& arena_cfg);  ///< Wraps OrtApi::CreateAndRegisterAllocator
 
+  void RegisterExecutionProviderLibrary(const char* registration_name, const ORTCHAR_T* path);
+  void UnregisterExecutionProviderLibrary(const char* registration_name);
+
+  void GetEpDevices(const OrtEpDevice* const** ep_devices, size_t* num_ep_devices);
+
   static void operator delete(void* p) { Ort::api->ReleaseEnv(reinterpret_cast<OrtEnv*>(p)); }
   Ort::Abstract make_abstract;
 };
@@ -597,6 +602,7 @@ struct OrtSessionOptions {
   OrtSessionOptions& AppendExecutionProvider_CANN(const OrtCANNProviderOptions& provider_options);
   /// Wraps OrtApi::SessionOptionsAppendExecutionProvider. Currently supports SNPE, XNNPACK and VitisAI.
   OrtSessionOptions& AppendExecutionProvider(const std::string& provider_name, const char* const* keys, const char* const* values, size_t num_keys);
+  OrtSessionOptions& AppendExecutionProvider_V2(OrtEnv* env, const OrtEpDevice* const* ep_devices, size_t num_ep_devices, const char* const* ep_option_keys, const char* const* ep_option_vals, size_t num_ep_options);
 
   OrtSessionOptions& SetCustomCreateThreadFn(OrtCustomCreateThreadFn ort_custom_create_thread_fn);  ///< Wraps OrtApi::SessionOptionsSetCustomCreateThreadFn
   OrtSessionOptions& SetCustomThreadCreationOptions(void* ort_custom_thread_creation_options);      ///< Wraps OrtApi::SessionOptionsSetCustomThreadCreationOptions
