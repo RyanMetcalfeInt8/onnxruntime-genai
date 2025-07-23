@@ -562,10 +562,13 @@ DeviceInterface* SetProviderSessionOptions(OrtSessionOptions& session_options,
       session_options.AppendExecutionProvider(provider_options.name.c_str(), keys.data(), values.data(), keys.size());
 #else
       // Register openvino EP (TODO: this should get moved into Openvino::InterfaceImpl)
-      static const std::filesystem::path library_path = "onnxruntime_providers_openvino_plugin.dll";
-      static const std::string registration_name = "openvino_ep";
+      //static const std::filesystem::path library_path = "onnxruntime_providers_openvino_plugin.dll";
+      static const std::filesystem::path library_path = "onnxruntime_providers_openvino.dll";
+      static const std::string registration_name = "OpenVINOExecutionProvider";
       std::cout << "RegisterExecutionProviderLibrary..." << std::endl;
       Generators::GetOrtEnv().RegisterExecutionProviderLibrary(registration_name.c_str(), library_path.c_str());
+      std::cout << "<-RegisterExecutionProviderLibrary" << std::endl;
+      
 
       // First, find what the device_type was specified as in openvino_genai.json
       std::string ov_device_type;
@@ -580,6 +583,29 @@ DeviceInterface* SetProviderSessionOptions(OrtSessionOptions& session_options,
         ov_device_type = "CPU";
       }
 
+      {
+        size_t num_devices = 0;
+        const OrtEpDevice* const* device_ptrs = nullptr;
+        Generators::GetOrtEnv().GetEpDevices(&device_ptrs, &num_devices);
+        std::cout << "num_devices = " << num_devices << std::endl;
+        for (int i = 0; i < num_devices; i++) {
+          std::string ep_name = Ort::api->EpDevice_EpName(device_ptrs[i]);
+          std::cout << i << ": ep_name = " << ep_name << std::endl;
+          const OrtKeyValuePairs* keyvals = Ort::api->EpDevice_EpMetadata(device_ptrs[i]);
+          size_t num_entries;
+          const char* const* keys = nullptr;
+          const char* const* values = nullptr;
+          Ort::api->GetKeyValuePairs(keyvals, &keys, &values, &num_entries);
+          for (int kvi = 0; kvi < num_entries; kvi++) {
+            std::string key = keys[kvi];
+            std::string val = values[kvi];
+
+            std::cout << "   " << key << ": " << val << std::endl;
+          }
+        }
+        
+      }
+
       // Next, get the EP Devices, and find the openvino_ep device that matches ov_device_type
       size_t num_devices = 0;
       const OrtEpDevice* const* device_ptrs = nullptr;
@@ -587,7 +613,7 @@ DeviceInterface* SetProviderSessionOptions(OrtSessionOptions& session_options,
       const OrtEpDevice* const* ov_device = nullptr;
       for (int i = 0; i < num_devices; i++) {
         std::string ep_name = Ort::api->EpDevice_EpName(device_ptrs[i]);
-        if (ep_name == "openvino_ep") {
+        if (ep_name == "OpenVINOExecutionProvider") {
           const OrtKeyValuePairs* keyvals = Ort::api->EpDevice_EpMetadata(device_ptrs[i]);
           size_t num_entries;
           const char* const* keys = nullptr;
@@ -624,6 +650,7 @@ DeviceInterface* SetProviderSessionOptions(OrtSessionOptions& session_options,
       OrtEnv& env = Generators::GetOrtEnv();
       std::cout << "calling (newer) session_options.AppendExecutionProvider_V2" << std::endl;
       session_options.AppendExecutionProvider_V2(&env, ov_device, 1, keys.data(), values.data(), keys.size());
+      
 #endif
 
     }
@@ -984,7 +1011,12 @@ std::unique_ptr<OrtSession> Model::CreateSession(OrtEnv& ort_env, const std::str
   }
 
   // Otherwise, load the model from the file system
-  return OrtSession::Create(ort_env, (config_->config_path / fs::path(model_filename)).c_str(), session_options);
+
+  std::cout << "OrtSession::Create->" << std::endl;
+  auto session = OrtSession::Create(ort_env, (config_->config_path / fs::path(model_filename)).c_str(), session_options);
+  //std::cout << "exiting.." << std::endl;
+  //std::exit(0);
+  return session;
 }
 
 std::shared_ptr<Tokenizer> Model::CreateTokenizer() const {
