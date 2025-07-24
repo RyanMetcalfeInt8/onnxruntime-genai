@@ -563,7 +563,7 @@ DeviceInterface* SetProviderSessionOptions(OrtSessionOptions& session_options,
 #else
       // Register openvino EP (TODO: this should get moved into Openvino::InterfaceImpl)
       static const std::filesystem::path library_path = "onnxruntime_providers_openvino_plugin.dll";
-      static const std::string registration_name = "openvino_ep";
+      static const std::string registration_name = "OpenVINOExecutionProvider";
       std::cout << "RegisterExecutionProviderLibrary..." << std::endl;
       Generators::GetOrtEnv().RegisterExecutionProviderLibrary(registration_name.c_str(), library_path.c_str());
 
@@ -587,7 +587,7 @@ DeviceInterface* SetProviderSessionOptions(OrtSessionOptions& session_options,
       const OrtEpDevice* const* ov_device = nullptr;
       for (int i = 0; i < num_devices; i++) {
         std::string ep_name = Ort::api->EpDevice_EpName(device_ptrs[i]);
-        if (ep_name == "openvino_ep") {
+        if (ep_name == registration_name) {
           const OrtKeyValuePairs* keyvals = Ort::api->EpDevice_EpMetadata(device_ptrs[i]);
           size_t num_entries;
           const char* const* keys = nullptr;
