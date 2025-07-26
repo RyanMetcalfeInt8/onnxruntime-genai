@@ -12,6 +12,9 @@ namespace OpenVINO {
 
 struct InterfaceImpl : DeviceInterface {
   InterfaceImpl() {
+    static const std::filesystem::path library_path = "onnxruntime_providers_openvino_plugin.dll";
+    static const std::string registration_name = "OpenVINOExecutionProvider";
+    Generators::GetOrtEnv().RegisterExecutionProviderLibrary(registration_name.c_str(), library_path.c_str());
   }
 
   DeviceType GetType() const override { return DeviceType::OpenVINO; }

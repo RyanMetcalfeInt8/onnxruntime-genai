@@ -561,12 +561,6 @@ DeviceInterface* SetProviderSessionOptions(OrtSessionOptions& session_options,
       std::cout << "calling (older) session_options.AppendExecutionProvider " << std::endl;
       session_options.AppendExecutionProvider(provider_options.name.c_str(), keys.data(), values.data(), keys.size());
 #else
-      // Register openvino EP (TODO: this should get moved into Openvino::InterfaceImpl)
-      static const std::filesystem::path library_path = "onnxruntime_providers_openvino_plugin.dll";
-      static const std::string registration_name = "OpenVINOExecutionProvider";
-      std::cout << "RegisterExecutionProviderLibrary..." << std::endl;
-      Generators::GetOrtEnv().RegisterExecutionProviderLibrary(registration_name.c_str(), library_path.c_str());
-
       // First, find what the device_type was specified as in openvino_genai.json
       std::string ov_device_type;
       for (auto& option : provider_options.options) {
@@ -587,7 +581,7 @@ DeviceInterface* SetProviderSessionOptions(OrtSessionOptions& session_options,
       const OrtEpDevice* const* ov_device = nullptr;
       for (int i = 0; i < num_devices; i++) {
         std::string ep_name = Ort::api->EpDevice_EpName(device_ptrs[i]);
-        if (ep_name == registration_name) {
+        if (ep_name == "OpenVINOExecutionProvider") {
           const OrtKeyValuePairs* keyvals = Ort::api->EpDevice_EpMetadata(device_ptrs[i]);
           size_t num_entries;
           const char* const* keys = nullptr;
@@ -601,28 +595,24 @@ DeviceInterface* SetProviderSessionOptions(OrtSessionOptions& session_options,
               break;
             }
           }
-
           if (ov_device)
             break;
         }
-      }
-
-      std::vector<const char*> keys, values;
-      for (auto& option : provider_options.options) {
-        //this is no longer a valid options for new EP
-        if (option.first == "device_type")
-          continue;
-
-        keys.emplace_back(option.first.c_str());
-        values.emplace_back(option.second.c_str());
       }
 
       if (!ov_device) {
         throw std::runtime_error("openvino_ep device not found..");
       }
 
+      std::vector<const char*> keys, values;
+      for (auto& option : provider_options.options) {
+        if (option.first == "device_type")
+          continue;
+        keys.emplace_back(option.first.c_str());
+        values.emplace_back(option.second.c_str());
+      }
+
       OrtEnv& env = Generators::GetOrtEnv();
-      std::cout << "calling (newer) session_options.AppendExecutionProvider_V2" << std::endl;
       session_options.AppendExecutionProvider_V2(&env, ov_device, 1, keys.data(), values.data(), keys.size());
 #endif
 
