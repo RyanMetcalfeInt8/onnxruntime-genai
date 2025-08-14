@@ -192,11 +192,15 @@ void DefaultPositionInputs::CreateAndInitializePositionIDs(DeviceSpan<int32_t> n
   for (int i = 0; i < shape[0]; i++) {
     T abs_position = 0;
     for (int j = 0; j < shape[1]; j++, word_id++, position++) {
+#if 0
       if (*word_id == model_.config_->model.pad_token_id) {
         *position = 0;
       } else {
         *position = abs_position++;
       }
+#else
+      *position = abs_position++;
+#endif
     }
     position_data_next[i] = abs_position - 1;
   }
@@ -249,13 +253,18 @@ void DefaultPositionInputs::CreateAndInitializeAttentionMask(DeviceSpan<int32_t>
   auto* mask_data = attention_mask->GetTensorMutableData<T>();
   const auto* word_id = const_cast<DeviceSpan<int32_t>&>(next_tokens).CpuSpan().data();
   auto* mask = mask_data;
+
   for (int i = 0; i < shape[0]; i++) {
     for (int j = 0; j < shape[1]; j++, word_id++, mask++) {
+#if 0
       if (*word_id == model_.config_->model.pad_token_id) {
         *mask = 0;
       } else {
         *mask = 1;
       }
+#else
+      *mask = 1;
+#endif
     }
   }
 
