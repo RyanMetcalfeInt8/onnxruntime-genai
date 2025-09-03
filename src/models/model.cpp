@@ -20,6 +20,7 @@
 #include "marian.h"
 #include "decoder_only_pipeline.h"
 #include "../dml/interface.h"
+#include "ittutils.h"
 
 #if defined(_WIN32)
 #include <direct.h>
@@ -143,8 +144,11 @@ void State::Run(OrtSession& session, bool graph_capture_this_run) {
     ep_dynamic_options_next_run_.clear();
   }
 
-  session.Run(run_options_.get(), input_names_.data(), inputs_.data(), input_names_.size(),
-              output_names_.data(), outputs_.data(), output_names_.size());
+  {
+    ITT_SCOPED_TASK(Session_Run)
+    session.Run(run_options_.get(), input_names_.data(), inputs_.data(), input_names_.size(),
+                output_names_.data(), outputs_.data(), output_names_.size());
+  }
 
   extra_outputs_.RegisterOutputs();
 

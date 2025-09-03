@@ -24,6 +24,49 @@ if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.30.0")
   cmake_policy(SET CMP0169 OLD)
 endif()
 
+option(ENABLE_ITT "Whether to enable support for ITT tracing with VTune" ON)
+
+#whether ITT is enabled or not, include ittutils.
+# This allows the project source files to unconditionally include <ittutils.h>
+# That header file will implement the preprocessor logic to *actually* enable ITT or not.
+include_directories( ittutils )
+
+#If ITT is enabled, use VTune environment variables to find required headers / libraries.
+# Worst case, we silently fail here, and ITT won't be enabled in the build.
+if( ENABLE_ITT )
+  message("ENABLE_ITT is ON")
+  if( DEFINED ENV{VTUNE_PROFILER_DIR} )
+    file(TO_NATIVE_PATH $ENV{VTUNE_PROFILER_DIR} VTUNE_PROFILER_DIR)
+    find_path(ITT_INCLUDE_DIR
+              NAME ittnotify.h
+              HINTS ${VTUNE_PROFILER_DIR}/sdk/include
+              DOC "ITT include directory"
+              )
+
+    if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+      set(VTUNE_SDK_LIBDIR ${VTUNE_PROFILER_DIR}/sdk/lib64)
+    else()
+      set(VTUNE_SDK_LIBDIR ${VTUNE_PROFILER_DIR}/sdk/lib32)
+    endif()
+
+    find_library(ITTNOTIFY_LIB
+                 NAMES ittnotify libittnotify
+                 HINTS ${VTUNE_SDK_LIBDIR}
+                 DOC "ITTNOTIFY library"
+                 )
+
+    if( ITT_INCLUDE_DIR AND ITTNOTIFY_LIB  )
+      set( ITT_LIBS ${ITTNOTIFY_LIB})
+      include_directories( ${ITT_INCLUDE_DIR})
+      add_definitions(-DITT_ENABLED)
+    else()
+      message("ITT Include directies and libraries NOT found. ITT will be disabled.")
+    endif()
+  else()
+    message( "VTUNE_PROFILER_DIR is not set. ITT will be disabled.")
+  endif()
+endif()
+
 if(MSVC)
   # DLL initialization errors due to old conda msvcp140.dll dll are a result of the new MSVC compiler
   # See https://developercommunity.visualstudio.com/t/Access-violation-with-std::mutex::lock-a/10664660#T-N10668856
@@ -145,6 +188,7 @@ target_include_directories(onnxruntime-genai PRIVATE ${onnxruntime_extensions_SO
 target_link_libraries(onnxruntime-genai PRIVATE onnxruntime_extensions)
 target_link_directories(onnxruntime-genai PRIVATE ${ORT_LIB_DIR})
 target_link_libraries(onnxruntime-genai PRIVATE Threads::Threads)
+target_link_libraries(onnxruntime-genai PRIVATE ${ITT_LIBS})
 
 # The genai library itself is always embedded in the shared library
 list(APPEND ortgenai_embed_libs "$<TARGET_FILE:onnxruntime-genai>")
