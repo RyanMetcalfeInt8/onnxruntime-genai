@@ -683,7 +683,7 @@ DeviceInterface* SetProviderSessionOptions(OrtSessionOptions& session_options,
         }
       }
 
-#if USE_WINML
+#if 1
       // Get device filtering config
       Config::DeviceFilteringOptions resolved_device_filtering;
       if (provider_options.device_filtering_options.has_value()) {
