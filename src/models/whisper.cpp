@@ -22,6 +22,7 @@ std::unique_ptr<State> WhisperModel::CreateState(DeviceSpan<int32_t> sequence_le
   // It it doesn't expose any KVCache tensors, we want to create a 'WhisperStatefulState'
   // So here, we check if the model contains any cross, past, or present key/value tensors.
   bool has_any_input_output_kv = false;
+  // clang-format off
   std::vector<std::string> input_output_kv_templates = {
     config_->model.decoder.inputs.cross_past_key_names,
     config_->model.decoder.inputs.cross_past_value_names,
@@ -32,6 +33,7 @@ std::unique_ptr<State> WhisperModel::CreateState(DeviceSpan<int32_t> sequence_le
     config_->model.decoder.outputs.present_key_names,
     config_->model.decoder.outputs.present_value_names,
   };
+  // clang-format on
 
   for (auto& name_template : input_output_kv_templates) {
     auto name0 = ComposeKeyValueName(name_template, 0);
