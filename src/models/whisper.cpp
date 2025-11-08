@@ -23,10 +23,14 @@ std::unique_ptr<State> WhisperModel::CreateState(DeviceSpan<int32_t> sequence_le
   // So here, we check if the model contains any cross, past, or present key/value tensors.
   bool has_any_input_output_kv = false;
   std::vector<std::string> input_output_kv_templates = {
-      config_->model.decoder.inputs.cross_past_key_names, config_->model.decoder.inputs.cross_past_value_names,
-      config_->model.decoder.inputs.past_key_names, config_->model.decoder.inputs.past_value_names,
-      config_->model.encoder.outputs.cross_present_key_names, config_->model.encoder.outputs.cross_present_value_names,
-      config_->model.decoder.outputs.present_key_names, config_->model.decoder.outputs.present_value_names
+      config_->model.decoder.inputs.cross_past_key_names,
+      config_->model.decoder.inputs.cross_past_value_names,
+      config_->model.decoder.inputs.past_key_names,
+      config_->model.decoder.inputs.past_value_names,
+      config_->model.encoder.outputs.cross_present_key_names,
+      config_->model.encoder.outputs.cross_present_value_names,
+      config_->model.decoder.outputs.present_key_names,
+      config_->model.decoder.outputs.present_value_names,
   };
 
   for (auto& name_template : input_output_kv_templates) {
